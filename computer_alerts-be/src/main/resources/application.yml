@@ -22,8 +22,7 @@ server:
 
 
 
-okta:
-  oauth2:
+auth0:
     clientId: PWoMxp7p4Gt69pA3kfnJdXXyINtua5qB
     clientSecret: wsBITK-BPpOf-DLOvMjjNU1wicWFHfUol-3hbZ0M2r6BwY9RUClcu0lj9ZGTsEuN
     domain: dev-im24qkb6l7t2yhha.ca.auth0.com
