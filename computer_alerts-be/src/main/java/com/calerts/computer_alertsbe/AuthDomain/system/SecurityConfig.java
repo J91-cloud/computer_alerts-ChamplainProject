@@ -14,91 +14,26 @@ import org.springframework.security.oauth2.client.registration.InMemoryClientReg
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.web.SecurityFilterChain;
-
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 
 
 @Configuration
 @EnableWebSecurity
-@EnableGlobalMethodSecurity(securedEnabled = true, jsr250Enabled = true)
 public class SecurityConfig {
-
-    @Value("${auth0.clientSecret}")
-    private String auth0secret;
-
-    @Value("${auth0.clientId}")
-    private String auth0ClientId;
-
-    @Value("${backend.url}")
-    private String baseUrl;
-
-    @Autowired
-    private JwtDecoder jwtDecoder; // Autowired the custom JWT decoder bean
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login").permitAll()
-                        .requestMatchers("/admin/**").hasRole("ADMIN")
-                        .requestMatchers("/author/**").hasAnyRole("ADMIN", "AUTHOR")
-                        .requestMatchers("/reader/**").hasAnyRole("ADMIN", "AUTHOR", "READER")
+                .csrf(csrf -> csrf.disable())
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .authorizeHttpRequests(authz -> authz
+                        .requestMatchers("api/v1/readers").hasAuthority("ROLE_ADMIN")
+//                        .requestMatchers("/api/author/**").hasAuthority("ROLE_AUTHOR")
+//                        .requestMatchers("/api/reader/**").hasAuthority("ROLE_READER")
                         .anyRequest().authenticated()
                 )
-                .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(authorization -> authorization
-                                .baseUri("/oauth2/authorization")
-                        )
-                        .redirectionEndpoint(redirection -> redirection
-                                .baseUri(baseUrl + "/login/oauth2/code/*")
-                        )
-                )
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                )
-                .oauth2ResourceServer(oauth2 -> oauth2
-                        .jwt(jwt -> jwt
-                                        .decoder(jwtDecoder) // Use the custom JWT decoder bean
-                                // Optional: Custom authentication converter
-                                //.jwtAuthenticationConverter(customJwtAuthenticationConverter())
-                        )
-                );
+                .addFilterBefore(new JwtAuthenticationFilter(), BasicAuthenticationFilter.class);
 
         return http.build();
-    }
-
-    @Bean
-    public ClientRegistrationRepository clientRegistrationRepository() {
-        return new InMemoryClientRegistrationRepository(
-                googleClientRegistration(),
-                facebookClientRegistration()
-        );
-    }
-
-    private ClientRegistration googleClientRegistration() {
-        return ClientRegistration.withRegistrationId("google")
-                .clientId(auth0ClientId)
-                .clientSecret(auth0secret)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri(baseUrl + "/login/oauth2/code/google")
-                .scope("openid", "profile", "email")
-                .authorizationUri("https://accounts.google.com/o/oauth2/v2/auth")
-                .tokenUri("https://oauth2.googleapis.com/token") // Added or ensured tokenUri
-                .userInfoUri("https://openidconnect.googleapis.com/v1/userinfo")
-                .userNameAttributeName("name")
-                .build();
-    }
-
-    private ClientRegistration facebookClientRegistration() {
-        return ClientRegistration.withRegistrationId("facebook")
-                .clientId(auth0ClientId)
-                .clientSecret(auth0secret)
-                .authorizationGrantType(AuthorizationGrantType.AUTHORIZATION_CODE)
-                .redirectUri(baseUrl + "/login/oauth2/code/google")
-                .scope("openid", "profile", "email")
-                .authorizationUri("https://accounts.google.com/o/oauth2/v2/auth")
-                .tokenUri("https://oauth2.googleapis.com/token") // Added or ensured tokenUri
-                .userInfoUri("https://openidconnect.googleapis.com/v1/userinfo")
-                .userNameAttributeName("name")
-                .build();
     }
 }
